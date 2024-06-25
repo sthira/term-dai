@@ -1,4 +1,19 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-FileCopyrightText: © 2024 Vamsi Alluri <vamsi@sthira.xyz>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 pragma solidity ^0.8.6;
 
 interface VatAbstract {
@@ -18,26 +33,46 @@ interface GemAbstract {
     function transferFrom(address, address, uint256) external returns (bool);
 }
 
-// Term Dai creates a new group of users incentivized to monitor the long term health of Dai and argue for 
+// Term Dai creates a new group of users incentivized to monitor the long term health of Dai and argue for
 // emergency shutdown to activate their immediate redemption to protect all Dai holders along with themselves
-// in exchange for a guaranteed payout in dai for holding until term 
+// in exchange for a guaranteed payout in dai for holding until term
 contract TermDai {
     // --- Auth ---
-    mapping (address => uint256) public wards; // Addresses with admin authority
+    mapping(address => uint256) public wards; // Addresses with admin authority
+
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    function rely(address _usr) external auth { wards[_usr] = 1; emit Rely(_usr); }  // Add admin
-    function deny(address _usr) external auth { wards[_usr] = 0; emit Deny(_usr); }  // Remove admin
-    modifier auth {
+
+    function rely(address _usr) external auth {
+        wards[_usr] = 1;
+        emit Rely(_usr);
+    } // Add admin
+
+    function deny(address _usr) external auth {
+        wards[_usr] = 0;
+        emit Deny(_usr);
+    } // Remove admin
+
+    modifier auth() {
         require(wards[msg.sender] == 1, "td/not-authorized");
         _;
     }
 
     // --- User Approvals ---
-    mapping(address => mapping (address => uint256)) public can; // address => approved address => approval status
+    mapping(address => mapping(address => uint256)) public can; // address => approved address => approval status
+
     event Approval(address indexed sender, address indexed usr, uint256 approval);
-    function hope(address usr) external { can[msg.sender][usr] = 1; emit Approval(msg.sender, usr, 1);}
-    function nope(address usr) external { can[msg.sender][usr] = 0; emit Approval(msg.sender, usr, 0);}
+
+    function hope(address usr) external {
+        can[msg.sender][usr] = 1;
+        emit Approval(msg.sender, usr, 1);
+    }
+
+    function nope(address usr) external {
+        can[msg.sender][usr] = 0;
+        emit Approval(msg.sender, usr, 0);
+    }
+
     function wish(address sender, address usr) internal view returns (bool) {
         return either(sender == usr, can[sender][usr] == 1);
     }
@@ -50,13 +85,14 @@ contract TermDai {
     // class = keccak256(maturity timestamp)
     mapping(address => mapping(bytes32 => uint256)) public tDai; // user address => class => balance [wad]
     mapping(bytes32 => uint256) public totalSupply; // class => total supply [wad]
-    
+
     // gov controlled issuance params
     struct Params {
         uint256 size; // total issuance size [wad]
         uint256 discount; // discount fraction [tad] ex: 0.03 for 3%
     }
     // term duration (seconds) => issuance parameters {issuance size, issuance discount}
+
     mapping(uint256 => Params) public issuanceParams;
     // ex: 30 days => {10MM, 3%}
 
@@ -80,12 +116,14 @@ contract TermDai {
     }
 
     // --- Utils ---
-    uint256 constant internal TAD = 10 ** 10;
-    uint256 constant internal WAD = 10 ** 18;
-    uint256 constant internal RAY = 10 ** 27;
+    uint256 internal constant TAD = 10 ** 10;
+    uint256 internal constant WAD = 10 ** 18;
+    uint256 internal constant RAY = 10 ** 27;
 
     function either(bool x, bool y) internal pure returns (bool z) {
-        assembly{ z := or(x, y)}
+        assembly {
+            z := or(x, y)
+        }
     }
 
     // --- Setup ---
@@ -99,7 +137,9 @@ contract TermDai {
             gate = GateAbstract(data); // update gate address
 
             emit File(what, address(data));
-        } else revert("td/file-not-recognized");
+        } else {
+            revert("td/file-not-recognized");
+        }
     }
 
     // --- Internal ---
@@ -107,11 +147,7 @@ contract TermDai {
     /// @param usr User address
     /// @param maturity Maturity timestamp of term dai balance
     /// @param bal Term dai balance amount [wad]
-    function mintTermDai(
-        address usr,
-        uint256 maturity,
-        uint256 bal
-    ) internal {
+    function mintTermDai(address usr, uint256 maturity, uint256 bal) internal {
         // calculate term dai class with maturity timestamp
         bytes32 class_ = keccak256(abi.encodePacked(maturity));
 
@@ -124,11 +160,7 @@ contract TermDai {
     /// @param usr User address
     /// @param maturity Maturity timestamp of term dai balance
     /// @param bal Term dai balance amount [wad]
-    function burnTermDai(
-        address usr,
-        uint256 maturity,
-        uint256 bal
-    ) internal {
+    function burnTermDai(address usr, uint256 maturity, uint256 bal) internal {
         // calculate term dai class with maturity timestamp
         bytes32 class_ = keccak256(abi.encodePacked(maturity));
 
@@ -145,12 +177,7 @@ contract TermDai {
     /// @param dst Destination address to transfer balance to
     /// @param class_ Term dai balance class
     /// @param bal Term dai balance amount to transfer [wad]
-    function moveTermDai(
-        address src,
-        address dst,
-        bytes32 class_,
-        uint256 bal
-    ) external {
+    function moveTermDai(address src, address dst, bytes32 class_, uint256 bal) external {
         require(wish(src, msg.sender), "not-allowed");
         require(tDai[src][class_] >= bal, "td/insufficient-balance");
 
@@ -174,15 +201,15 @@ contract TermDai {
         dai.transferFrom(msg.sender, address(this), amount_);
         mintTermDai(msg.sender, maturity, amount_);
     }
-    
+
     /// Remove Term Dai Balance (Authorized Redemption)
     /// @param maturity Maturity Timestamp of the balance to be redeemed
     /// @param amount_ dai amount transferred to redeemer, term dai amount redeemed [wad]
     /// @dev Authorized address executing the method and funding it with the term dai balance
     /// @dev will receive the dai transfer
     function remove(uint256 maturity, uint256 amount_) public auth {
-         burnTermDai(msg.sender, maturity, amount_);
-         dai.transferFrom(address(this), msg.sender, amount_);
+        burnTermDai(msg.sender, maturity, amount_);
+        dai.transferFrom(address(this), msg.sender, amount_);
     }
 
     // --- Gov Parameters ---
@@ -212,16 +239,16 @@ contract TermDai {
 
         uint256 discountPortion = (amount_ * issuanceParams[duration].discount) / TAD; // calculate discount portion [wad * tad / tad = wad]
         uint256 userPortion = (amount_ - discountPortion); // calculate user portion [wad]
-        
+
         // pull discount portion from gate and convert to dai erc20 balance
         gate.draw(address(this), discountPortion * RAY); // gate requires dai amount in [rad = wad * ray]
         daiJoin.exit(address(this), discountPortion); // dai join requires dai amount in [wad]
 
         // pull user portion from user
         dai.transferFrom(usr, address(this), userPortion);
-        
-        // issue term dai balance to user 
-        // calculate maturity date by adding duration to current block timestamp 
+
+        // issue term dai balance to user
+        // calculate maturity date by adding duration to current block timestamp
         mintTermDai(usr, (block.timestamp + duration), amount_);
     }
 
@@ -235,7 +262,7 @@ contract TermDai {
 
         // burn term dai
         burnTermDai(usr, maturity, amount_);
-        
+
         // transfer dai to user
         dai.transferFrom(address(this), usr, amount_);
     }
@@ -245,7 +272,7 @@ contract TermDai {
     /// @dev live set to 0
     function close() external {
         require(live == 1, "td/closed"); // can be closed only once
-        
+
         // at least one close condition needs to be met:
         // * maker protocol is shutdown
         // * governance executes close

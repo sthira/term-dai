@@ -8,8 +8,8 @@ Term Dai allows users to lockup their Dai for a fixed term in exchange for a fix
 
 Can be setup with Dai natively or Savings Dai. Governance has two deployment options:
 
-* Create Term Dai(tDai) which offers a combined fixed rate which would include a fixed savings rate plus a fixed term lockup rate.
-* Create Term Savings Dai(tsDai) which offers a fixed lockup rate over the underlying variable savings rate.
+- Create Term Dai(tDai) which offers a combined fixed rate which would include a fixed savings rate plus a fixed term lockup rate.
+- Create Term Savings Dai(tsDai) which offers a fixed lockup rate over the underlying variable savings rate.
 
 ### Balances
 
